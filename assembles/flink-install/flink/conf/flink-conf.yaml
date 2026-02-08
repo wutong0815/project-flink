@@ -1,0 +1,104 @@
+################################################################################
+#  Licensed to the Apache Software Foundation (ASF) under one
+#  or more contributor license agreements.  See the NOTICE file
+#  distributed with this work for additional information
+#  regarding copyright ownership.  The ASF licenses this file
+#  to you under the Apache License, Version 2.0 (the
+#  "License"); you may not use this file except in compliance
+#  with the License.  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+# limitations under the License.
+################################################################################
+
+
+#==============================================================================
+# Common
+#==============================================================================
+
+# The host on which the JobManager runs. Only used in Standalone deployments.
+# In high availability mode, if this value is set, it will be used as the master
+# address to which the client connects to submit a job.
+# If not set, the configured "high-availability.master-address" will be used.
+# By default, "localhost" is used.
+jobmanager.rpc.address: localhost
+
+# The port where the JobManager's main actor system receives messages.
+jobmanager.rpc.port: 6123
+
+# The heap size for the JobManager JVM
+jobmanager.memory.process.size: 1600m
+
+# The heap size for the TaskManager JVM
+taskmanager.memory.process.size: 1728m
+
+# The number of task slots that each TaskManager offers. Each slot runs one parallel pipeline.
+taskmanager.numberOfTaskSlots: 1
+
+# The parallelism used for programs that did not specify and other parallelism.
+parallelism.default: 1
+
+# The temporary directory used by the JVM when creating native libraries or temp files.
+# If not specified, the default temp directory of the operating system is used.
+# It is strongly recommended to set this path on each node to a fast, local disk.
+# Multiple directories can be specified by using a comma separated list of absolute paths.
+# Example: /tmp/flink-temp-1,/tmp/flink-temp-2
+# io.tmp.dirs: /tmp
+
+#==============================================================================
+# Web Frontend
+#==============================================================================
+
+# Port of the WebInterface.
+webfrontend.port: 8081
+
+#==============================================================================
+# Streaming State Checkpointing
+#==============================================================================
+
+# Directory for checkpoints for non-standalone setups.
+# Using MinIO as storage backend via Hadoop filesystem support
+state.checkpoints.dir: s3a://flink-checkpoints/
+
+# Directory for savepoints.
+# Using MinIO as storage backend via Hadoop filesystem support
+state.savepoints.dir: s3a://flink-savepoints/
+
+# Hadoop configuration for S3/MinIO access
+fs.s3a.impl: org.apache.hadoop.fs.s3a.S3AFileSystem
+fs.s3a.aws.credentials.provider: org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider
+fs.s3a.access.key: minioadmin
+fs.s3a.secret.key: minioadmin
+fs.s3a.endpoint: http://minio:9000
+fs.s3a.path.style.access: true
+fs.s3a.connection.ssl.enabled: false
+
+# S3A FileSystem Configuration
+s3a.path.style.access: true
+s3a.access.key: minioadmin
+s3a.secret.key: minioadmin
+s3a.endpoint: http://minio:9000
+s3a.connection.ssl.enabled: false
+
+# Enable asynchronous snapshots. Recommended for heavily loaded production jobs.
+# state.backend.async: true
+
+#==============================================================================
+# Advanced
+#==============================================================================
+
+# The number of buffers for the network stack.
+# taskmanager.network.memory.buffers: 2048
+
+# Fraction of free memory in the TaskManager (between 0.0 and 1.0) that is not allocated
+# for the memory manager.
+# taskmanager.memory.fraction: 0.1
+
+# Pre-classify production and user runtime jars to avoid classloader leak in invokable.
+# This flag is effective only when 'classloader.resolve-order' is 'parent-first'.
+# pipeline.classloader.check-leaked-classloader: true

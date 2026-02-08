@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  createbuckets:
+    image: minio/mc
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+        /usr/bin/mc config host add myminio http://minio:9000 minioadmin minioadmin &&
+        /usr/bin/mc mb myminio/flink-checkpoints &&
+        /usr/bin/mc mb myminio/flink-savepoints &&
+        /usr/bin/mc policy set public myminio/flink-checkpoints &&
+        /usr/bin/mc policy set public myminio/flink-savepoints &&
+        /usr/bin/mc version enable myminio/flink-checkpoints &&
+        /usr/bin/mc version enable myminio/flink-savepoints &&
+        echo 'Created buckets flink-checkpoints and flink-savepoints'
+      "
+
+  flink-jobmanager:
+    build: ..
+    container_name: flink-jobmanager
+    ports:
+      - "8081:8081"
+      - "6123:6123"
+    environment:
+      - JOB_MANAGER_RPC_ADDRESS=flink-jobmanager
+      - START_JOBMANAGER=true
+      - START_TASKMANAGER=false
+    volumes:
+      - ./core-site.xml:/opt/flink/conf/core-site.xml
+      - ./flink-conf.yaml:/opt/flink/conf/flink-conf.yaml
+    depends_on:
+      minio:
+        condition: service_healthy
+      createbuckets:
+        condition: service_completed_successfully
+
+  flink-taskmanager:
+    build: ..
+    container_name: flink-taskmanager
+    scale: 2
+    environment:
+      - JOB_MANAGER_RPC_ADDRESS=flink-jobmanager
+      - START_JOBMANAGER=false
+      - START_TASKMANAGER=true
+    volumes:
+      - ./core-site.xml:/opt/flink/conf/core-site.xml
+      - ./flink-conf.yaml:/opt/flink/conf/flink-conf.yaml
+    depends_on:
+      - flink-jobmanager
+
+volumes:
+  minio_data:

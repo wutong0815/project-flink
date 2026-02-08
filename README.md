@@ -1,106 +1,163 @@
-# Flink 容器化部署方案
+# Flink Savepoint with MinIO Integration
 
-此项目提供了一套完整的Flink容器化解决方案，支持快速部署和配置Flink JobManager和TaskManager。
-
-## 目录结构
-
-```
-.
-├── Dockerfile           # Docker镜像构建文件
-├── docker-init.sh       # 容器初始化脚本
-├── docker-start.sh      # Flink组件启动脚本
-├── flink-conf.yaml      # Flink配置文件模板
-├── log4j-console.properties  # 日志配置文件
-├── flink.conf           # Key-Value格式的配置文件
-├── docker-compose.yml   # Docker Compose配置
-└── README.md            # 本文档
-```
+这是一个演示如何使用MinIO作为后端存储来实现Flink savepoint功能的项目。
 
 ## 功能特性
 
-1. **灵活配置**：支持通过`.conf`文件进行Key-Value格式的配置
-2. **权限管理**：自动设置适当的文件和目录权限
-3. **组件分离**：可独立启动JobManager和TaskManager
-4. **配置热加载**：支持外部配置文件动态覆盖默认配置
+- 使用MinIO作为Flink检查点和savepoint的存储后端
+- 通过Hadoop S3A文件系统访问MinIO
+- REST API用于触发savepoint操作
+- Docker Compose一键部署环境
 
-## 使用方法
+## 技术栈
 
-### 1. 构建镜像
+- Apache Flink 1.17.1
+- MinIO (兼容S3的对象存储)
+- Hadoop AWS S3A文件系统
+- Docker & Docker Compose
+
+## 快速开始
+
+### 1. 构建项目
 
 ```bash
-docker build -t flink-cluster .
+mvn clean package
 ```
 
-### 2. 使用Docker Compose部署
+### 2. 启动服务
 
 ```bash
-# 创建配置目录
-mkdir -p config
-cp flink.conf config/
-
-# 启动集群
 docker-compose up -d
 ```
 
-### 3. 手动运行单个组件
+这将启动以下服务：
+- MinIO对象存储
+- Flink JobManager
+- Flink TaskManager
 
-```bash
-# 运行JobManager
-docker run -d -p 8081:8081 -p 6123:6123 \
-  -e START_JOBMANAGER=true \
-  -e START_TASKMANAGER=false \
-  flink-cluster
+### 3. 访问服务
 
-# 运行TaskManager
-docker run -d \
-  -e START_JOBMANAGER=false \
-  -e START_TASKMANAGER=true \
-  --link <jobmanager-container> \
-  flink-cluster
-```
-
-### 4. 配置自定义参数
-
-将你的配置文件放在`config/`目录下，支持以下文件：
-- `flink.conf`：Key-Value格式的Flink配置
-- `log4j-console.properties`：日志配置
+- Flink Web UI: http://localhost:8081
+- MinIO Console: http://localhost:9001 (用户名: minioadmin, 密码: minioadmin)
 
 ## 配置说明
 
-### flink.conf 示例
+### Flink配置
 
-```conf
-# JobManager配置
-jobmanager.rpc.address=localhost
-jobmanager.rpc.port=6123
-jobmanager.memory.process.size=1600m
+[flink-conf.yaml](assembles/flink-install/flink/conf/flink-conf.yaml) 包含了以下关键配置：
 
-# TaskManager配置
-taskmanager.numberOfTaskSlots=2
-taskmanager.memory.process.size=2048m
+```yaml
+# 检查点和savepoint存储位置
+state.checkpoints.dir: s3a://flink-checkpoints/
+state.savepoints.dir: s3a://flink-savepoints/
 
-# Web界面配置
-webfrontend.port=8081
+# S3A文件系统配置
+fs.s3a.impl: org.apache.hadoop.fs.s3a.S3AFileSystem
+fs.s3a.aws.credentials.provider: org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider
+fs.s3a.access.key: minioadmin
+fs.s3a.secret.key: minioadmin
+fs.s3a.endpoint: http://minio:9000
+fs.s3a.path.style.access: true
+fs.s3a.connection.ssl.enabled: false
 ```
 
-### 环境变量
+### Hadoop配置
 
-- `START_JOBMANAGER`: 是否启动JobManager (true/false)
-- `START_TASKMANAGER`: 是否启动TaskManager (true/false)
+[core-site.xml](core-site.xml) 定义了S3A文件系统的具体参数：
 
-## 端口映射
+```xml
+<configuration>
+    <property>
+        <name>fs.s3a.impl</name>
+        <value>org.apache.hadoop.fs.s3a.S3AFileSystem</value>
+    </property>
+    <property>
+        <name>fs.s3a.aws.credentials.provider</name>
+        <value>org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider</value>
+    </property>
+    <property>
+        <name>fs.s3a.access.key</name>
+        <value>minioadmin</value>
+    </property>
+    <property>
+        <name>fs.s3a.secret.key</name>
+        <value>minioadmin</value>
+    </property>
+    <property>
+        <name>fs.s3a.endpoint</name>
+        <value>http://minio:9000</value>
+    </property>
+    <property>
+        <name>fs.s3a.path.style.access</name>
+        <value>true</value>
+    </property>
+</configuration>
+```
 
-- `8081`: Web UI端口
-- `6123`: RPC端口
-- `6124`: 数据传输端口
+## 使用方法
 
-## 自定义扩展
+### 运行Flink作业
 
-你可以通过修改以下脚本来定制行为：
+```bash
+# 直接运行作业
+flink run -c com.example.project.flinktool.utils.SavepointExample target/flink-savepoint-demo-1.0-SNAPSHOT.jar
 
-1. `docker-init.sh`：初始化脚本，处理配置文件和权限
-2. `docker-start.sh`：启动脚本，控制组件启动逻辑
+# 从savepoint恢复作业
+flink run -s <savepoint-path> -c com.example.project.flinktool.utils.SavepointExample target/flink-savepoint-demo-1.0-SNAPSHOT.jar
+```
 
-## 监控与日志
+### 通过REST API触发Savepoint
 
-日志文件位于容器内的 `/app/logs` 目录下，可以通过挂载卷来持久化。
+#### 触发Savepoint
+
+```bash
+curl -X POST http://localhost:8081/api/v1/savepoint/trigger \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jobId": "<job-id>",
+    "savepointPath": "s3a://flink-savepoints/"
+  }'
+```
+
+#### 停止作业并创建Savepoint
+
+```bash
+curl -X POST http://localhost:8081/api/v1/savepoint/stop-with-savepoint \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jobId": "<job-id>",
+    "savepointPath": "s3a://flink-savepoints/"
+  }'
+```
+
+## 项目结构
+
+```
+project-flink/
+├── src/main/java/com/example/flink/savepoint/
+│   ├── SavepointExample.java      # 示例Flink作业
+│   ├── SavepointUtil.java         # Savepoint工具类
+│   └── controller/
+│       └── SavepointController.java # REST API控制器
+├── core-site.xml                  # Hadoop配置
+├── flink-conf.yaml                # Flink配置
+├── Dockerfile                     # Docker镜像定义
+├── docker-compose.yml             # Docker Compose配置
+├── assembles/                     # 组件装配配置
+└── pom.xml                        # Maven依赖管理
+```
+
+## 故障排除
+
+1. **无法连接MinIO**：确认MinIO服务正在运行，且网络配置正确
+2. **权限问题**：检查MinIO上的bucket权限设置
+3. **Hadoop JAR缺失**：确保hadoop-aws和相关依赖已正确添加到Flink的lib目录
+
+## 安全考虑
+
+在生产环境中，请注意：
+
+- 更改默认的MinIO凭据
+- 使用HTTPS连接MinIO
+- 配置适当的访问控制策略
+- 定期备份重要的savepoint数据

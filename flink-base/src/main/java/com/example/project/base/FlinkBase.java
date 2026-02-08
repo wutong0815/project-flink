@@ -4,10 +4,10 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class FlinkBaseApplication {
+public class FlinkBase {
 
     public static void main(String[] args) {
-        SpringApplication.run(FlinkBaseApplication.class, args);
+        SpringApplication.run(FlinkBase.class, args);
     }
 
 }
