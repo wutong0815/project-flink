@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>com.example.project</groupId>
-        <artifactId>projectflink</artifactId>
+        <artifactId>projectflink-parent</artifactId>
         <version>0.0.1-SNAPSHOT</version>
     </parent>
     <groupId>com.example.project</groupId>
@@ -13,6 +13,7 @@
     <name>flink-base</name>
     <description>flink-base</description>
     <packaging>jar</packaging>
+
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -23,6 +24,48 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
+        </dependency>
+
+        <!-- Flink Core Dependencies -->
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-core</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-streaming-java</artifactId>
+        </dependency>
+        
+        <!-- Flink Clients -->
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-clients</artifactId>
+        </dependency>
+        
+        <!-- Flink Kafka Connector -->
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-connector-kafka</artifactId>
+        </dependency>
+        
+        <!-- Flink DataGenerator Connector (for test data) -->
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-connector-datagen</artifactId>
+        </dependency>
+        
+        <!-- Jackson for JSON processing -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+        
+        <!-- Flink Core Module (provides Kafka and MinIO clients) -->
+        <dependency>
+            <groupId>com.example.project</groupId>
+            <artifactId>flinkcore</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
         </dependency>
     </dependencies>
 

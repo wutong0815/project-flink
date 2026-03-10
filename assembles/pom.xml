@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>com.example.project</groupId>
-        <artifactId>projectflink</artifactId>
+        <artifactId>projectflink-parent</artifactId>
         <version>0.0.1-SNAPSHOT</version>
     </parent>
     <groupId>com.example.project</groupId>
@@ -12,6 +12,9 @@
     <version>0.0.1-SNAPSHOT</version>
     <name>assembles</name>
     <description>assembles</description>
+    <properties>
+        <java.version>21</java.version>
+    </properties>
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>

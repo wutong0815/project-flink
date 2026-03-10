@@ -18,58 +18,80 @@
 
 
 #==============================================================================
-# Common
+# 通用配置
 #==============================================================================
 
-# The host on which the JobManager runs. Only used in Standalone deployments.
-# In high availability mode, if this value is set, it will be used as the master
-# address to which the client connects to submit a job.
-# If not set, the configured "high-availability.master-address" will be used.
-# By default, "localhost" is used.
+# JobManager 运行的主机地址。仅用于独立部署模式。
+# 在高可用模式下，如果设置了此值，它将用作客户端连接提交作业的主节点地址。
+# 如果未设置，将使用配置的 "high-availability.master-address"。
+# 默认值为 "localhost"。
 jobmanager.rpc.address: localhost
 
-# The port where the JobManager's main actor system receives messages.
+# JobManager 主 ActorSystem 接收消息的端口
 jobmanager.rpc.port: 6123
 
-# The heap size for the JobManager JVM
-jobmanager.memory.process.size: 1600m
+# JobManager JVM 的堆内存大小
+# 针对 4 核 CPU、8GB 内存服务器优化
+jobmanager.memory.process.size: 1024m
 
-# The heap size for the TaskManager JVM
-taskmanager.memory.process.size: 1728m
+# JobManager JVM 元空间和其他内存选项（可选配置）
+# jobmanager.memory.jvm-metaspace.size: 256m
+# jobmanager.memory.jvm-gc.pause-time.target: 200ms
 
-# The number of task slots that each TaskManager offers. Each slot runs one parallel pipeline.
-taskmanager.numberOfTaskSlots: 1
+# TaskManager JVM 的堆内存大小
+# 针对 4 核 CPU、8GB 内存服务器优化（预留约 1GB 给操作系统）
+taskmanager.memory.process.size: 6144m
 
-# The parallelism used for programs that did not specify and other parallelism.
-parallelism.default: 1
+# TaskManager 内存分配明细
+# 网络内存比例（用于网络缓冲区）
+taskmanager.memory.network.fraction: 0.1
 
-# The temporary directory used by the JVM when creating native libraries or temp files.
-# If not specified, the default temp directory of the operating system is used.
-# It is strongly recommended to set this path on each node to a fast, local disk.
-# Multiple directories can be specified by using a comma separated list of absolute paths.
-# Example: /tmp/flink-temp-1,/tmp/flink-temp-2
+# 托管内存比例（用于排序、哈希等操作）
+taskmanager.memory.managed.fraction: 0.4
+
+# JVM 元空间大小，用于存储类元数据
+# taskmanager.memory.jvm-metaspace.size: 256m
+
+# 每个 TaskManager 提供的任务槽数量。每个槽运行一个并行流水线。
+# 设置为匹配 CPU 核心数（4 核）以实现最大并行度
+taskmanager.numberOfTaskSlots: 4
+
+# 用于未指定并行度的程序和其他操作的默认并行度
+# 与任务槽数量匹配以实现最优资源利用率
+parallelism.default: 4
+
+# JVM 创建本地库或临时文件时使用的临时目录。
+# 如果未指定，则使用操作系统的默认临时目录。
+# 强烈建议在每个节点上将此路径设置为快速的本地磁盘。
+# 可以通过逗号分隔的绝对路径列表来指定多个目录。
+# 示例：/tmp/flink-temp-1,/tmp/flink-temp-2
 # io.tmp.dirs: /tmp
 
 #==============================================================================
-# Web Frontend
+# Web 前端
 #==============================================================================
 
-# Port of the WebInterface.
+# Web 界面的端口。
 webfrontend.port: 8081
 
 #==============================================================================
-# Streaming State Checkpointing
+# 流处理状态检查点
 #==============================================================================
 
-# Directory for checkpoints for non-standalone setups.
-# Using MinIO as storage backend via Hadoop filesystem support
+# 非独立模式的检查点目录。
+# 通过 Hadoop 文件系统支持使用 MinIO 作为存储后端
 state.checkpoints.dir: s3a://flink-checkpoints/
 
-# Directory for savepoints.
-# Using MinIO as storage backend via Hadoop filesystem support
+# Savepoint 目录。
+# 通过 Hadoop 文件系统支持使用 MinIO 作为存储后端
 state.savepoints.dir: s3a://flink-savepoints/
 
-# Hadoop configuration for S3/MinIO access
+#==============================================================================
+# 文件系统配置
+#==============================================================================
+
+# S3/MinIO 访问的 Hadoop 配置
+# 使用 Hadoop S3A 文件系统访问 MinIO 对象存储
 fs.s3a.impl: org.apache.hadoop.fs.s3a.S3AFileSystem
 fs.s3a.aws.credentials.provider: org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider
 fs.s3a.access.key: minioadmin
@@ -78,27 +100,100 @@ fs.s3a.endpoint: http://minio:9000
 fs.s3a.path.style.access: true
 fs.s3a.connection.ssl.enabled: false
 
-# S3A FileSystem Configuration
-s3a.path.style.access: true
-s3a.access.key: minioadmin
-s3a.secret.key: minioadmin
-s3a.endpoint: http://minio:9000
-s3a.connection.ssl.enabled: false
+# S3A 连接和性能优化配置
+fs.s3a.connection.timeout: 300000
+fs.s3a.connection.maximum: 100
+fs.s3a.threads.max: 64
+fs.s3a.threads.keepalivetime: 60
+fs.s3a.socket.send.buffer: 65536
+fs.s3a.socket.recv.buffer: 65536
 
-# Enable asynchronous snapshots. Recommended for heavily loaded production jobs.
+# S3A 分块上传配置（优化大文件传输）
+fs.s3a.multipart.size: 134217728
+fs.s3a.multipart.threshold: 134217728
+fs.s3a.fast.upload: true
+fs.s3a.fast.upload.buffer: disk
+
+# S3A 重试和错误处理
+fs.s3a.attempts.maximum: 5
+fs.s3a.retry.interval: 1000
+fs.s3a.retry.throttle.limit: 50
+
+# 块大小配置（影响读取性能）
+fs.s3a.block.size: 67108864
+
+# 其他文件系统实现
+# 本地文件系统（默认已支持）
+# fs.file.impl: org.apache.hadoop.fs.LocalFileSystem
+
+# HDFS 文件系统（如需要可启用）
+# fs.hdfs.impl: org.apache.hadoop.hdfs.DistributedFileSystem
+
+# 通用文件系统配置
+# 文件系统的默认缓冲区大小
+fs.buffer.size: 8192
+
+# 文件状态缓存过期时间（毫秒）
+fs.s3a.metadatastore.expiry.seconds: 300
+
+# 是否启用文件系统统计
+fs.s3a.acl.default: private
+
+# 启用异步快照。推荐用于高负载的生产作业。
 # state.backend.async: true
 
 #==============================================================================
-# Advanced
+# 高级配置
 #==============================================================================
 
-# The number of buffers for the network stack.
-# taskmanager.network.memory.buffers: 2048
+# 网络栈的缓冲区数量。
+# 已针对内存有限的环境进行调整
+taskmanager.network.memory.buffers: 1024
 
-# Fraction of free memory in the TaskManager (between 0.0 and 1.0) that is not allocated
-# for the memory manager.
-# taskmanager.memory.fraction: 0.1
+# TaskManager 中未分配给内存管理器的空闲内存比例（0.0 到 1.0 之间）。
+taskmanager.memory.fraction: 0.1
 
-# Pre-classify production and user runtime jars to avoid classloader leak in invokable.
-# This flag is effective only when 'classloader.resolve-order' is 'parent-first'.
-# pipeline.classloader.check-leaked-classloader: true
+# 网络和托管内存的内存段大小
+taskmanager.memory.segment.size: 32kb
+
+# JobManager 调度设置
+# 向 TaskManager 请求新槽的超时时间
+jobmanager.scheduler.slot.request.timeout: 30000
+
+# 可同时请求的最大槽数量
+jobmanager.scheduler.max-slot-number: 4
+
+# 检查点和 Savepoint 设置，用于内存优化
+# 限制并发检查点数量以减少内存压力
+execution.checkpointing.max-concurrent-checkpoints: 1
+
+# 检查点之间的最小暂停时间（避免过于频繁的检查点）
+execution.checkpointing.min-pause: 60000
+
+# 检查点超时时间（应小于检查点间隔）
+execution.checkpointing.timeout: 300000
+
+# 为大型状态启用增量检查点（RocksDB）
+# execution.checkpointing.incremental: true
+
+# 任务执行设置
+# 失败任务的重试次数
+execution.attempts.default: 3
+
+# 任务取消超时时间
+execution.task.cancellation.timeout: 30000
+
+# 预分类生产环境和用户运行时 JAR 包，以避免类加载器泄漏。
+# 此标志仅在 'classloader.resolve-order' 为 'parent-first' 时有效。
+pipeline.classloader.check-leaked-classloader: true
+
+# 类加载器解析顺序（生产环境推荐使用 parent-first）
+classloader.resolve-order: parent-first
+
+# Akka 框架设置（用于 JobManager 和 TaskManager 之间的通信）
+# akka.ask.timeout: 30s
+# akka.framesize: 10485760b
+
+# 网络 Shuffle 设置
+# taskmanager.network.netty.num-arenas: 4
+# taskmanager.network.netty.buffer-transport.enabled: true
