@@ -43,30 +43,21 @@ public class KafkaStreamWorkflow {
      * @param outputTopic 输出主题
      */
     public void runKafkaWorkflow(String kafkaBootstrapServers, String inputTopic, String outputTopic) throws Exception {
-        runKafkaWorkflow(kafkaBootstrapServers, inputTopic, outputTopic, null);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
+        runKafkaWorkflow(env, kafkaBootstrapServers, inputTopic, outputTopic);
     }
     
     /**
-     * 运行 Kafka 流处理工作流（带配置）
+     * 运行 Kafka 流处理工作流（带环境）
      * 
+     * @param env Flink 执行环境
      * @param kafkaBootstrapServers Kafka 服务器地址
      * @param inputTopic 输入主题
      * @param outputTopic 输出主题
-     * @param config Flink 配置对象（可选）
      */
-    public void runKafkaWorkflow(String kafkaBootstrapServers, String inputTopic, String outputTopic, Configuration config) throws Exception {
+    public void runKafkaWorkflow(StreamExecutionEnvironment env, String kafkaBootstrapServers, String inputTopic, String outputTopic) throws Exception {
         // 1. 创建执行环境
-        StreamExecutionEnvironment env;
-        if (config != null) {
-            env = StreamExecutionEnvironment.getExecutionEnvironment(config);
-            LOG.info("使用自定义配置创建执行环境");
-        } else {
-            // 自动加载文件系统配置
-            LOG.info("加载默认文件系统配置...");
-            Configuration flinkConfig = FileSystemConfigLoader.createDefaultConfig();
-            env = StreamExecutionEnvironment.getExecutionEnvironment(flinkConfig);
-        }
-        
         env.setParallelism(1);
         
         // 2. 使用 FlinkCore 提供的 Kafka 客户端创建 Source 和 Sink

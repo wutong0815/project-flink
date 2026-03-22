@@ -32,27 +32,18 @@ public class BasicWorkflow {
      * 运行基础工作流
      */
     public void runWorkflow() throws Exception {
-        runWorkflow(null);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
+        runWorkflow(env);
     }
     
     /**
-     * 运行基础工作流（带配置）
+     * 运行基础工作流（带环境）
      * 
-     * @param config Flink 配置对象（可选）
+     * @param env Flink 执行环境
      */
-    public void runWorkflow(Configuration config) throws Exception {
+    public void runWorkflow(StreamExecutionEnvironment env) throws Exception {
         // 1. 创建执行环境
-        StreamExecutionEnvironment env;
-        if (config != null) {
-            env = StreamExecutionEnvironment.getExecutionEnvironment(config);
-            LOG.info("使用自定义配置创建执行环境");
-        } else {
-            // 自动加载文件系统配置
-            LOG.info("加载默认文件系统配置...");
-            Configuration flinkConfig = FileSystemConfigLoader.createDefaultConfig();
-            env = StreamExecutionEnvironment.getExecutionEnvironment(flinkConfig);
-        }
-        
         env.setParallelism(1);
         
         // 2. 生成测试数据流
